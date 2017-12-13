@@ -223,7 +223,10 @@ pipeline 2>&1 | tee $LOGFILE
 
 
 
-__author__ = "Ben Dickins"
+
+# https://github.com/tethig
+
+__author__ = "Ben Dickins" 
 __status__ = "Prototype"
 __version__ = "0.1"
 
