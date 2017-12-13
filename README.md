@@ -17,7 +17,7 @@ for d in "TMP" "TRIM" ; do
   fi
 done
 
-# variables to be used in main loop
+# variables in main loop
 reads1=(FASTQ/*R1*.fastq.gz) # collect each forward read in array, e.g. "FASTQ/A_S1_L001_R1_001.fastq.gz"
 reads1=("${reads1[@]##*/}") # [@] refers to array, greedy remove */ from left, e.g. "A_S1_L001_R1_001.fastq.gz"
 reads2=("${reads1[@]/_R1/_R2}") # substitute R2 for R1, e.g. "A_S1_L001_R2_001.fastq.gz"
@@ -35,12 +35,12 @@ for ((i=0; i<=${#reads1[@]}-1; i++)); do # i from zero to one minus length of ar
   rvsrds="${reads2[$i]}" # e.g. "A_S1_L001_R2_001.fastq.gz"
   id="${fwdrds%%_*}" # greedy remove _ from right e.g. "A"
 
-  # cutadapt processes PE reads simultaneously: first filter against Q10, 5' (g/G) & 3' (a/A) search, discard trimmed reads
+  # cutadapt
   cutadapt -q 10,10 -g GGGCTCGG -a GACGCTGC -G GCAGCGTC -A CCGAGCCC --discard-trimmed \
   -o TMP/${id}_filtered_R1.fastq.gz -p TMP/${id}_filtered_R2.fastq.gz \
   FASTQ/${fwdrds} FASTQ/${rvsrds}
 
-  # sickle: adaptively trim filtered reads to Q30, discard reads <20 bases, write paired + singletons to TRIM/
+  # sickle
   sickle pe -t sanger -l 20 -n -g -f TMP/${id}_filtered_R1.fastq.gz -r TMP/${id}_filtered_R2.fastq.gz \
   -o TRIM/${id}_trimmed_R1.fastq.gz -p TRIM/${id}_trimmed_R2.fastq.gz -s TRIM/${id}_singles.fastq.gz
 
@@ -65,7 +65,7 @@ This script assumes the existence of FASTA/, TMP/ and TRIM/ folders.
 EOF
 }
 
-# variables to be used in main loop
+# variables in main loop
 reads1=(TRIM/*_trimmed_R1.fastq.gz) # collect each forward read in array, e.g. "TRIM/A_trimmed_R1.fastq.gz"
 reads1=("${reads1[@]##*/}") # [@] refers to array, greedy remove */ from left, e.g. "A_trimmed_R1.fastq.gz"
 reads2=("${reads1[@]/_R1/_R2}") # substitute R2 for R1, e.g. "A_trimmed_R2.fastq.gz"
@@ -84,22 +84,22 @@ for ((i=0; i<=${#reads1[@]}-1; i++)); do
   id="${fwdrds%%_*}" # greedy remove _* from right e.g. "A"
   sgls="${id}_singles.fastq.gz" # e.g. "A_singles.fastq.gz"
 
-  # mapping SE reads (no read groups), need to make {1-2686,1-250} genome
+  # mapping SE reads
   bwa mem -t 4 FASTA/pUC18_L09136.fasta TRIM/${sgls} > TMP/${id}_greedymapped_SE.sam
 
-  # select UNMAPPED reads (f=flag present, 4=unmapped) and cleanup
+  # select UNMAPPED reads
   samtools view -b -f 4 -o TMP/${id}_unmapped_SE.bam TMP/${id}_greedymapped_SE.sam
   rm TMP/${id}_greedymapped_SE.sam # remove SAM
 
-  # mapping PE reads, can I make these map in a single-end mode??
+  # mapping PE reads
   bwa mem -t 4 FASTA/pUC18_L09136.fasta TRIM/${fwdrds} TRIM/${rvsrds} > TMP/${id}_greedymapped_PE.sam
 
-  # select UNMAPPED reads here too, then sort by read name (-n, because we need to emit paired end files next) and cleanup
-  # explanation: | is pipe and - is reference to intermediate output)
+  # select UNMAPPED reads
+  
   samtools view -O SAM -h -f 4 TMP/${id}_greedymapped_PE.sam | samtools sort -O BAM -n -o TMP/${id}_unmapped_PE.bam -
   rm TMP/${id}_greedymapped_PE.sam # remove SAM
 
-  # convert SE and PE BAM files to FASTQ (for PE singletons will be discarded by bedtools, which is conservative), cleanup
+  # convert SE and PE BAM files to FASTQ 
   bedtools bamtofastq -i TMP/${id}_unmapped_SE.bam -fq TRIM/${id}_unmapped_SE.fastq
   bedtools bamtofastq -i TMP/${id}_unmapped_PE.bam -fq TRIM/${id}_unmapped_R1.fastq -fq2 TRIM/${id}_unmapped_R2.fastq
   rm TMP/${id}_unmapped_*.bam # remove BAMs
@@ -123,7 +123,7 @@ This script assumes the existence of FASTA/, TMP/ and TRIM/ folders.
 EOF
 }
 
-# variables to be used in main loop
+# variables in main loop
 reads1=(TRIM/*_trimmed_R1.fastq.gz) # collect each forward read in array, e.g. "TRIM/A_trimmed_R1.fastq.gz"
 reads1=("${reads1[@]##*/}") # [@] refers to array, greedy remove */ from left, e.g. "A_trimmed_R1.fastq.gz"
 reads2=("${reads1[@]/_R1/_R2}") # substitute R2 for R1, e.g. "A_trimmed_R2.fastq.gz"
@@ -142,22 +142,21 @@ for ((i=0; i<=${#reads1[@]}-1; i++)); do
   id="${fwdrds%%_*}" # greedy remove _* from right e.g. "A"
   sgls="${id}_singles.fastq.gz" # e.g. "A_singles.fastq.gz"
 
-  # mapping SE reads (no read groups), need to make {1-2686,1-250} genome
+  # mapping SE reads
   bwa mem -t 4 FASTA/pUC18_L09136.fasta TRIM/${sgls} > TMP/${id}_greedymapped_SE.sam
 
-  # select UNMAPPED reads (f=flag present, 4=unmapped) and cleanup
+  # select UNMAPPED reads
   samtools view -b -f 4 -o TMP/${id}_unmapped_SE.bam TMP/${id}_greedymapped_SE.sam
   rm TMP/${id}_greedymapped_SE.sam # remove SAM
 
-  # mapping PE reads, can I make these map in a single-end mode??
+  # mapping PE reads
   bwa mem -t 4 FASTA/pUC18_L09136.fasta TRIM/${fwdrds} TRIM/${rvsrds} > TMP/${id}_greedymapped_PE.sam
 
-  # select UNMAPPED reads here too, then sort by read name (-n, because we need to emit paired end files next) and cleanup
-  # explanation: | is pipe and - is reference to intermediate output)
+  # select UNMAPPED reads
   samtools view -O SAM -h -f 4 TMP/${id}_greedymapped_PE.sam | samtools sort -O BAM -n -o TMP/${id}_unmapped_PE.bam -
   rm TMP/${id}_greedymapped_PE.sam # remove SAM
 
-  # convert SE and PE BAM files to FASTQ (for PE singletons will be discarded by bedtools, which is conservative), cleanup
+  # convert SE and PE BAM files to FASTQ
   bedtools bamtofastq -i TMP/${id}_unmapped_SE.bam -fq TRIM/${id}_unmapped_SE.fastq
   bedtools bamtofastq -i TMP/${id}_unmapped_PE.bam -fq TRIM/${id}_unmapped_R1.fastq -fq2 TRIM/${id}_unmapped_R2.fastq
   rm TMP/${id}_unmapped_*.bam # remove BAMs
@@ -186,7 +185,7 @@ for d in "VCF" ; do
   fi
 done
 
-# variables to be used in main loop
+# variables in main loop
 reads1=(MAP/*_phixmapped.bam) # collect each forward read in array, e.g. "MAP/A_S1_L001_R1_001 mapped.bam"
 reads1=("${reads1[@]##*/}") # [@] refers to array, greedy remove */ from left, e.g. "A_S1_L001_R1_001mapped.bam"
 
@@ -217,6 +216,10 @@ echo [`date +"%Y-%m-%d %H:%M:%S"`] "#> DONE."
 } #pipeline end
 
 pipeline 2>&1 | tee $LOGFILE
+
+
+
+
 
 
 
